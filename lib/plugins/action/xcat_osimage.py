@@ -51,8 +51,9 @@ class ActionModule(ActionBase):
                     m = self.INCLUDE_PATTERN.match(line)
                     if not m:
                         continue
-                    display.vvv("Including: %s" % m.group(1))
-                    d1, d2 = self._parse_pkglist(m.group(1), other)
+                    incf = m.group(1).strip()
+                    display.vvv("Including: %s" % incf)
+                    d1, d2 = self._parse_pkglist(incf, other)
                     pkgs_dict.update(d1)
                     if other:
                         repo_dict.update(d2)
@@ -116,7 +117,7 @@ class ActionModule(ActionBase):
                     gpgcheck=False
                 )
                 rs = self._execute_module(module_name='yum_repository',
-                                          module_args=module_args, task_vars=task_vars, become=True,
+                                          module_args=module_args, task_vars=task_vars,
                                           )
                 module_rs = merge_hash(module_rs, rs)
 
@@ -131,7 +132,7 @@ class ActionModule(ActionBase):
                     name=pp.keys(),
                 )
                 rs = self._execute_module(module_name='yum',
-                                          module_args=module_args, task_vars=task_vars, become=True,
+                                          module_args=module_args, task_vars=task_vars,
                                           )
                 module_rs = merge_hash(module_rs, rs)
 
@@ -213,3 +214,4 @@ class ActionModule(ActionBase):
             result = self._deploy_osimage(osimage, excludes=osimage_exc.split(','), task_vars=task_vars)
 
         return result
+
