@@ -1,0 +1,167 @@
+#!/bin/sh
+
+# This script handle the GPFS initial cluster setup.
+#
+# Variables:
+#
+# 1) Mandatory: N/A
+#
+# 2) Optional:
+#    GPFS_Cluster          The name of the GPFS cluster (no spaces are allowed).
+
+LOGFILE=${MESTOR_LOG_FILE:-/tmp/`basename $0`.log}
+export DEBUGME=1
+
+#------------------------------------------------------------------
+# Name: LOG
+# Synopsis: LOG <message>
+# Description:
+#       Record message into log file.
+#------------------------------------------------------------------
+LOG () {
+    echo $(date) "$1" | tee -a $LOGFILE
+    sync
+}
+
+#------------------------------------------------------------------
+# Name: LOG_ERROR
+# Synopsis: LOG_ERROR <message>
+# Description:
+#       Record error message into log file.
+#------------------------------------------------------------------
+LOG_ERROR () {
+    echo $(date) "ERROR: $1 Check $LOGFILE on host $(hostname -s) for details." | tee -a $LOGFILE
+    sync
+}
+
+#------------------------------------------------------------------
+# Name: dumpenv
+# Synopsis: dumpenv
+# Description:
+#       Dump environment variables to log file.
+#------------------------------------------------------------------
+dumpenv() {
+
+    if [ "x$DEBUGME" = "x1" ]; then
+        echo "--------------  Env  ------------------" >> $LOGFILE
+        env >> $LOGFILE
+        echo "---------------------------------------" >> $LOGFILE
+        echo >> $LOGFILE
+    fi
+
+}
+
+#------------------------------------------------------------------
+# Name: runcmd
+# Synopsis: runcmd <cmdline>
+# Description:
+#       Record cmdline, run it and return the exit code.
+#------------------------------------------------------------------
+runcmd() {
+
+    local cmdline="$1"
+    echo "# $cmdline" >> $LOGFILE
+    eval $cmdline >> $LOGFILE >&1
+
+    local result="$?"
+    echo "Exit code = $result" >> $LOGFILE
+    echo >> $LOGFILE
+    return $result
+}
+
+#------------------------------------------------------------------
+# Name: validate
+# Synopsis: validate
+# Description:
+#       Check the layer environment variables and where needed set them
+#------------------------------------------------------------------
+validate() {
+
+    true
+
+}
+
+#------------------------------------------------------------------
+# Name: get_my_gpfs_hostname
+# Synopsis: get_my_gpfs_hostname
+# Description:
+#        Get this node's GPFS hostname
+#------------------------------------------------------------------
+get_my_gpfs_hostname() {
+    local shortname=$(hostname -s)
+    convert_to_GPFS_hostname "$shortname"
+}
+
+#------------------------------------------------------------------
+# Name: convert_to_GPFS_hostname
+# Synopsis: convert_to_GPFS_hostname <hostname>
+# Description:
+#       Add the GPFS hostname suffix to the specified hostname.
+#       e.g., "compute1" => "compute1-bond0"
+#------------------------------------------------------------------
+convert_to_GPFS_hostname() {
+    local host1="$1"
+    local suffix1="$GPFS_Hostname_Suffix"
+    echo ${host1}${suffix1}
+}
+
+#------------------------------------------------------------------
+# Name: create_initial_cluster
+# Synopsis: create_cluster <cluster_names>
+#                          <node name>
+# Description:
+#       Create the GPFS cluster on current node
+#------------------------------------------------------------------
+create_cluster() {
+
+    local cluster_name="$1"
+    local mynode="$2"
+
+    # First create the cluster file
+    LOG "Create the initial GPFS cluster [$cluster_name] on [$mynode]"
+
+    runcmd "mmcrcluster -N $mynode:quorum --ccr-enable -r $(which ssh) -R $(which scp) -C $cluster_name"
+    if [ $? -ne 0 ]; then
+        LOG_ERROR "Failed to create GPFS cluster."
+        exit 1
+    fi
+    runcmd "mmchlicense server --accept -N $mynode"
+    if [ $? -ne 0 ]; then
+        LOG_ERROR "Failed to assign license to node: $mynode."
+        exit 1
+    fi
+    LOG "Wait 30 seconds for cluster info to propagate to other nodes."
+    sleep 30
+
+    runcmd "mmlscluster"
+}
+
+# ------------------------------------------  Start --------------------------------------------
+
+# Check and update variables as needed
+validate
+
+# Add GPFS paths
+. /etc/profile.d/mmfs.sh
+
+# Dump environment variables
+dumpenv
+
+# Test hostname resolution
+THISHOST=$(get_my_gpfs_hostname)
+DATA=$(host $THISHOST)
+if [ $? -ne 0 ]; then
+    LOG "ERROR: Failed to determine the IP address of $THISHOST"
+    exit 1
+fi
+
+# Check the prerequisite packages.
+# These should be installed by the osimage during OS provisioning.
+#checkprereqs
+
+cluster=${GPFS_Cluster:-Cluster1}
+create_cluster "$cluster" "$THISHOST"
+
+LOG "Finished create GPFS cluster"
+echo "-------------  End  -----------------" >> $LOGFILE
+exit 0

@@ -1,0 +1,3 @@
+object_rpms/rhel7/spectrum-scale-object
+zimon_rpms/rhel7/pmswift
+gpfs_rpms/gpfs.protocols-support

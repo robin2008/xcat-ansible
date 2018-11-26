@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Add GPFS paths
+. /etc/profile.d/mmfs.sh
+
+mmhealth cluster show

@@ -1,0 +1,5 @@
+gpfs_rpms/gpfs.callhome-ecc-client
+gpfs_rpms/rhel7/gpfs.callhome
+#kafka is only available for x86_64
+#gpfs_rpms/rhel7/gpfs.kafka
+#gpfs_rpms/rhel7/gpfs.librdkafka

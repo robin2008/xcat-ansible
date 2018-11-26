@@ -1,0 +1,4 @@
+gpfs_rpms/gpfs.java
+gpfs_rpms/gpfs.gui
+zimon_rpms/rhel7/gpfs.gss.pmsensors
+zimon_rpms/rhel7/gpfs.gss.pmcollector

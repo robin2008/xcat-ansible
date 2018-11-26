@@ -1,0 +1,9 @@
+gpfs_rpms/gpfs.base
+gpfs_rpms/gpfs.gpl
+gpfs_rpms/gpfs.msg.en_US
+gpfs_rpms/gpfs.gskit
+gpfs_rpms/gpfs.compression
+gpfs_rpms/gpfs.crypto
+gpfs_rpms/gpfs.adv
+gpfs_rpms/gpfs.license.adv
+gpfs_rpms/gpfs.docs

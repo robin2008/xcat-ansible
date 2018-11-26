@@ -1,0 +1,7 @@
+ganesha_rpms/rhel7/gpfs.nfs-ganesha
+ganesha_rpms/rhel7/gpfs.nfs-ganesha-utils
+ganesha_rpms/rhel7/gpfs.nfs-ganesha-gpfs
+zimon_rpms/rhel7/gpfs.pm-ganesha
+smb_rpms/rhel7/gpfs.smb
+gpfs_rpms/gpfs.protocols-support
+gpfs_rpms/gpfs.protocols-support

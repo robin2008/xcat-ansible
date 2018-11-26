@@ -1,0 +1,27 @@
+osimage:
+  mestro.redhat.full.master:
+    basic_attributes:
+      arch: ppc64le
+      distribution: rhels7.5
+      osdistro: rhels7.5-ppc64le
+      osname: Linux
+    imagetype: linux
+    package_selection:
+      otherpkgdir:
+      - /usr/lpp/mmfs/5.0.2.0
+      otherpkglist:
+      - packages/mestor_master_base.otherpkglist
+      pkgdir:
+      - /install/REPO/os/rhels/7.5/rhels7.5-ga/ppc64le
+      pkglist:
+      - packages/mestor_master.pkglist
+    provision_mode: install
+    role: compute
+    scripts:
+      postbootscripts:
+      - scripts/mestor_master_check
+      postscripts:
+      - scripts/mestor_gpfs_install
+      - scripts/mestor_gpfs_cluster
+    template: /opt/xcat/share/xcat/install/rh/compute.rhels7.tmpl
+schema_version: '1.0'

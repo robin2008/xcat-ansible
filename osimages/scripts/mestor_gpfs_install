@@ -1,0 +1,196 @@
+#!/bin/sh
+
+# This script installs the GPFS packages.
+#
+# Cluster variables:
+#
+# 1) Mandatory: N/A
+#
+# 2) Optional:
+#    GPFS_Hostname_Suffix   Use this suffix to force GPFS to use a particular NIC for daemon communication.
+#                           For example, if you want GPFS to use bond0, specify "-bond0" as the suffix.
+#                           When a node is added to the GPFS cluster, it is added as "compute1-bond0" instead
+#                           of "compute1".
+
+
+LOGFILE=${MESTOR_LOG_FILE:-/tmp/`basename $0`.log}
+export DEBUGME=1
+
+#------------------------------------------------------------------
+# Name: LOG
+# Synopsis: LOG <message>
+# Description:
+#       Record message into log file.
+#------------------------------------------------------------------
+LOG () {
+    echo $(date) "$1" | tee -a $LOGFILE
+    sync
+}
+
+#------------------------------------------------------------------
+# Name: LOG_ERROR
+# Synopsis: LOG_ERROR <message>
+# Description:
+#       Record error message into log file.
+#------------------------------------------------------------------
+LOG_ERROR () {
+    echo $(date) "ERROR: $1 Check $LOGFILE on host $(hostname -s) for details." | tee -a $LOGFILE
+    sync
+}
+
+#------------------------------------------------------------------
+# Name: dumpenv
+# Synopsis: dumpenv
+# Description:
+#       Dump environment variables to log file.
+#------------------------------------------------------------------
+dumpenv() {
+
+    if [ "x$DEBUGME" = "x1" ]; then
+        echo "--------------  Env  ------------------" >> $LOGFILE
+        env >> $LOGFILE
+        echo "---------------------------------------" >> $LOGFILE
+        echo >> $LOGFILE
+    fi
+
+}
+
+#------------------------------------------------------------------
+# Name: runcmd
+# Synopsis: runcmd <cmdline>
+# Description:
+#       Record cmdline, run it and return the exit code.
+#------------------------------------------------------------------
+runcmd() {
+
+    local cmdline="$1"
+    echo "# $cmdline" >> $LOGFILE
+    eval $cmdline >> $LOGFILE >&1
+
+    local result="$?"
+    echo "Exit code = $result" >> $LOGFILE
+    echo >> $LOGFILE
+    return $result
+}
+
+#------------------------------------------------------------------
+# Name: validate
+# Synopsis: validate
+# Description:
+#       Check the layer environment variables and where needed set them
+#------------------------------------------------------------------
+validate() {
+
+    true
+
+}
+
+#------------------------------------------------------------------
+# Name: get_my_gpfs_hostname
+# Synopsis: get_my_gpfs_hostname
+# Description:
+#        Get this node's GPFS hostname
+#------------------------------------------------------------------
+get_my_gpfs_hostname() {
+    local shortname=$(hostname -s)
+    convert_to_GPFS_hostname "$shortname"
+}
+
+#------------------------------------------------------------------
+# Name: convert_to_GPFS_hostname
+# Synopsis: convert_to_GPFS_hostname <hostname>
+# Description:
+#       Add the GPFS hostname suffix to the specified hostname.
+#       e.g., "compute1" => "compute1-bond0"
+#------------------------------------------------------------------
+convert_to_GPFS_hostname() {
+    local host1="$1"
+    local suffix1="$GPFS_Hostname_Suffix"
+    echo ${host1}${suffix1}
+}
+
+#------------------------------------------------------------------
+# Name: buildgplbin
+# Synopsis: buildgpfs
+# Description:
+#       Build the GPFS portability layer package for current kernel version
+#------------------------------------------------------------------
+buildgplbin() {
+
+    LOG "Building GPFS portability layer..."
+    runcmd "unset ARCH;/usr/lpp/mmfs/bin/mmbuildgpl --build-package"
+
+}
+
+#------------------------------------------------------------------
+# Name: load_module
+# Synopsis: load_module
+# Description:
+#       Load the specified kernel module.
+#------------------------------------------------------------------
+load_module() {
+    local module="$1"
+    if [ -z "$module" ]; then
+        return
+    fi
+
+    LOG "Load kernel module ${module}"
+    runcmd "modprobe $module"
+    if [ $? -ne 0 ]; then
+        LOG_ERROR "Failed to load kernel module ${module}."
+        exit 1
+    fi
+}
+
+
+#------------------------------------------------------------------
+# Name: mkprofile
+# Synopsis: mkprofile
+# Description:
+#       Make the profile
+#------------------------------------------------------------------
+mkprofile() {
+
+    LOG "Set path for GPFS commands"
+    export PATH=$PATH:/usr/lpp/mmfs/bin
+    touch /etc/profile.d/mmfs.sh
+    chmod 755 /etc/profile.d/mmfs.sh
+    echo "export PATH=\$PATH:/usr/sbin:/usr/lpp/mmfs/bin" > /etc/profile.d/mmfs.sh
+    echo "export MANPATH=\$MANPATH:/usr/lpp/mmfs/man" >> /etc/profile.d/mmfs.sh
+
+}
+
+# ------------------------------------------  Start --------------------------------------------
+
+# Check and update variables as needed
+validate
+
+# Dump environment variables
+dumpenv
+
+# Test hostname resolution
+THISHOST=$(get_my_gpfs_hostname)
+DATA=$(host $THISHOST)
+if [ $? -ne 0 ]; then
+    LOG "ERROR: Failed to determine the IP address of $THISHOST"
+    exit 1
+fi
+
+# Check the prerequisite packages.
+# These should be installed by the osimage during OS provisioning.
+#checkprereqs
+
+# Build the GPFS kernel module
+buildgplbin
+
+# Load the sunrpc kernel module.
+# We need to do this or else the "mmfs26" and "mmfslinux" kernel modules
+# will fail to load with unknown symbol errors.
+load_module "sunrpc"
+
+# Set path for GPFS commands
+mkprofile
+
+LOG "Finished install GPFS"
+echo "-------------  End  -----------------" >> $LOGFILE
+exit 0
